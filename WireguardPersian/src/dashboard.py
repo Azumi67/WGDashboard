@@ -36,7 +36,8 @@ from util import regex_match, check_DNS, check_Allowed_IPs, check_remote_endpoin
 DASHBOARD_VERSION = 'v3.0.6'
 
 # WireGuard's configuration path
-WG_CONF_PATH = None
+WG_CONF_PATH = '/etc/wireguard'
+BLACKLISTED_CONFIGS = {"proxy", "warp", "warp-account"}
 
 # Dashboard Config Name
 configuration_path = os.getenv('CONFIGURATION_PATH', '.')
@@ -582,15 +583,21 @@ def get_conf_pub_key(config_name):
     @return: Return public key or empty string
     @rtype: str
     """
-
     try:
-        conf = configparser.ConfigParser(strict=False)
-        conf.read(WG_CONF_PATH + "/" + config_name + ".conf")
-        pri = conf.get("Interface", "PrivateKey")
+        file_path = os.path.join(WG_CONF_PATH, f"{config_name}.conf")
+        with open(file_path, 'r') as f:
+            first_char = f.read(1)
+            f.seek(0)
+            if first_char == '{':
+                conf = json.load(f)
+                pri = conf["Interface"]["PrivateKey"]
+            else:
+                conf = configparser.ConfigParser(strict=False)
+                conf.read(file_path)
+                pri = conf.get("Interface", "PrivateKey")
         pub = subprocess.check_output(f"echo '{pri}' | wg pubkey", shell=True, stderr=subprocess.STDOUT)
-        conf.clear()
         return pub.decode().strip("\n")
-    except configparser.NoSectionError:
+    except (json.JSONDecodeError, configparser.NoSectionError, KeyError):
         return ""
 
 
@@ -655,21 +662,48 @@ def get_config_names():
     """
     config_files = glob(os.path.join(WG_CONF_PATH, '*.conf'))
     config_names = [Path(file).stem for file in config_files]
+    config_names = [name for name in config_names if name not in BLACKLISTED_CONFIGS]
     return config_names
 
 
 def get_conf_list():
-    """Get all WireGuard interfaces with status.
-
+    """
+    Get all WireGuard interfaces with status.
     @return: Return a list of dicts with interfaces and their statuses
     @rtype: list
     """
-
+    
     configs = []
     config_names = get_config_names()
 
     for conf_name in config_names:
-        create_table = f"""CREATE TABLE IF NOT EXISTS {conf_name} (id VARCHAR NOT NULL, private_key VARCHAR NULL, DNS VARCHAR NULL, endpoint_allowed_ip VARCHAR NULL, name VARCHAR NULL, total_receive FLOAT NULL, total_sent FLOAT NULL, total_data FLOAT NULL, endpoint VARCHAR NULL, status VARCHAR NULL, latest_handshake VARCHAR NULL, allowed_ip VARCHAR NULL, cumu_receive FLOAT NULL, cumu_sent FLOAT NULL, cumu_data FLOAT NULL, mtu INT NULL, keepalive INT NULL, remote_endpoint VARCHAR NULL, preshared_key VARCHAR NULL, end_active TINYINT(1) DEFAULT 1, timer_on TINYINT(1) DEFAULT 0, ends_at BIGINT(15) NULL, created_at BIGINT(15) NULL, bandwidth BIGINT DEFAULT 0, PRIMARY KEY (id))"""
+        create_table = f"""CREATE TABLE IF NOT EXISTS "{conf_name}" (
+            id VARCHAR NOT NULL,
+            private_key VARCHAR NULL,
+            DNS VARCHAR NULL,
+            endpoint_allowed_ip VARCHAR NULL,
+            name VARCHAR NULL,
+            total_receive FLOAT NULL,
+            total_sent FLOAT NULL,
+            total_data FLOAT NULL,
+            endpoint VARCHAR NULL,
+            status VARCHAR NULL,
+            latest_handshake VARCHAR NULL,
+            allowed_ip VARCHAR NULL,
+            cumu_receive FLOAT NULL,
+            cumu_sent FLOAT NULL,
+            cumu_data FLOAT NULL,
+            mtu INT NULL,
+            keepalive INT NULL,
+            remote_endpoint VARCHAR NULL,
+            preshared_key VARCHAR NULL,
+            end_active TINYINT(1) DEFAULT 1,
+            timer_on TINYINT(1) DEFAULT 0,
+            ends_at BIGINT(15) NULL,
+            created_at BIGINT(15) NULL,
+            bandwidth BIGINT DEFAULT 0,
+            PRIMARY KEY (id)
+        )"""
 
         g.cur.execute(create_table)
 
@@ -685,7 +719,7 @@ def get_conf_list():
 
         configs.append(temp)
 
-    if len(configs) > 0:
+    if configs:
         configs = sorted(configs, key=itemgetter('conf'))
 
     return configs
