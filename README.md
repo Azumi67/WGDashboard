@@ -1,5 +1,3 @@
-**این پروژه صرفا برای آموزش و بالا بردن دانش بوده است و هدف دیگری در ان نمیباشد**
-
 
 ![R (2)](https://github.com/Azumi67/PrivateIP-Tunnel/assets/119934376/a064577c-9302-4f43-b3bf-3d4f84245a6f)
 نام پروژه : پنل وایرگارد Wgdashboard
@@ -20,6 +18,7 @@
 - Persian HTML V2 Author : [Armin](https://github.com/A3is)
 - Script & Bug fixes : [Opiran](https://github.com/opiran-club)
 - Codes Edited & Modified By me & original persianized & Bug fixes : [Azumi](https://github.com/Azumi67)
+- dashboard.py "Fixing logging in the WireGuard panel" By [Soroush Imanian](https://github.com/SoroushImanian)
 - **I really appreciate Mr Amir who allowed me to be inspired by his coding, Opiran for his support and advice and Mr Armin for his beautiful work. Thank you**
 -----------------
 ![check](https://github.com/Azumi67/PrivateIP-Tunnel/assets/119934376/13de8d36-dcfe-498b-9d99-440049c0cf14)
